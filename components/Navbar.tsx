@@ -14,7 +14,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/">
           <Image
-            className="text-xl font-bold text-emerald-700 cursor-pointer"
+            className="text-xl font-bold text-orange-700 cursor-pointer"
             src="/mealplan.png"
             width={60}
             height={60}
@@ -25,7 +25,7 @@ export default function Navbar() {
         <div className="space-x-6 flex items-center">
           <SignedIn>
             <Link
-              className="text-slate-800 hover:text-emerald-500 transition-colors"
+              className="text-slate-800 hover:text-orange-500 transition-colors"
               href="/mealplan"
             >
               {" "}
@@ -34,7 +34,7 @@ export default function Navbar() {
             {user?.imageUrl && (
               <Link
                 href="/profile"
-                className="text-gray-700 hover:text-emerald-500 transition-colors"
+                className="text-gray-700 hover:text-orange-500 transition-colors"
               >
                 <Image
                   src={user.imageUrl}
@@ -46,26 +46,26 @@ export default function Navbar() {
               </Link>
             )}
             <SignOutButton>
-              <button className="ml-4 px-4 py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600 transition">
+              <button className="ml-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-red-600 transition">
                 Sign Out
               </button>
             </SignOutButton>
           </SignedIn>
           <SignedOut>
             <Link
-              className="text-gray-700 hover:text-emerald-500 transition-colors"
+              className="text-gray-700 hover:text-orange-500 transition-colors"
               href="/"
             >
               Home
             </Link>
             <Link
-              className="text-gray-700 hover:text-emerald-500 transition-colors"
+              className="text-gray-700 hover:text-orange-500 transition-colors"
               href={isSignedIn ? "/subscribe" : "/sign-up"}
             >
               Subscribe
             </Link>
             <Link
-              className="px-4 py-2 text-white bg-emerald-500 rounded hover:text-emerald-600 transition"
+              className="px-4 py-2 text-white bg-orange-500 rounded hover:text-orange-600 transition"
               href="/sign-up"
             >
               Sign Up!

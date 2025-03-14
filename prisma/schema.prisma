@@ -13,7 +13,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Profile(
+model Profile{
   id String @id @default(uuid())
   userId String @unique
   email String
@@ -22,4 +22,4 @@ model Profile(
   stripeSubscriptionId String? @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-)
+}
