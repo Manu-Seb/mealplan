@@ -4,6 +4,7 @@ import { availablePlans } from "@/lib/plans";
 import { useUser } from "@clerk/nextjs";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast, Toaster } from 'react-hot-toast';
 
 type SubscribeResponse = {
   url: string;
@@ -65,11 +66,14 @@ export default function Subscribe() {
       }
       return subscribeToPlan(planType, userId, email);
     },
+    onMutate: () => {
+      toast.loading("Processing your subscription");
+    },
     onSuccess: (data) => {
       window.location.href = data.url;
     },
     onError: (error) => {
-      console.log(error);
+      toast.error("something went wrong");
     },
   });
 
@@ -81,77 +85,80 @@ export default function Subscribe() {
     mutate({ planType });
   };
   return (
-    <div className="px-4 py-8 sm:py-12 lg-py-16">
-      <div className="justify-center align-center">
-        <h2 className="text-3xl font-bold text-center mt-12 sm:text-5xl tracking-tight">
-          Pricing
-        </h2>
-        <p className="max-w-3xl text-center mt-2 mx-auto text-xl ">
-          Get started on our weekly plan or upgrate to monthly or yearly when
-          you're ready
-        </p>
-      </div>
-      <div className="mt-12 container mx-auto space-y-12 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-x-8">
-        {availablePlans.map((plan, key) => (
-          <div
-            className=" relative p-8 border border-gray-200 rounded-2xl hover:shadow-md  hover:scale-[1.02] transition-transform duration-200 ease-out"
-            key={key}
-          >
-            <div className="flex-1">
-              {plan.isPopular && (
-                <p className="absolute top-0 py-1.5 px-4 bg-orange-500 text-white rounded-full text-xs font-semibold transform  -translate-y-1/2">
-                  Most Popular
-                </p>
-              )}
-              <h3 className=" text-xl font-bold ">{plan.name}</h3>
-              <p>
-                <span className="mt-6 text-5xl font-bold">
-                  {" "}
-                  Rs.{plan.amount}
-                </span>
-                <span className="font-bold text-xl">/{plan.interval}</span>
-              </p>
-              <p className="mt-4">{plan.description}</p>
-              <ul>
-                {plan.features.map((feature, key) => {
-                  return (
-                    <li key={key} className="flex mt-3">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="flex-shrink-0 w-6 mt-3 text-orange-500"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      <span className="mt-3">{feature}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-            <button
-              onClick={() => handleSubscribe(plan.interval)}
-              disabled={isPending}
-              className={`${
-                plan.interval === "month"
-                  ? "bg-orange-500 text-white hover:bg-orange-600"
-                  : "bg-orange-400 text-orange-700 hover:bg-orange-500"
-              }
-    mt-7 w-full py-3 px-6 text-white hover:bg-orange-600 border border-transparent rounded-md text-center font-medium hover:scale-[1.02] transition-transform duration-200 ease-out
-  `}
+    <>
+      <Toaster />
+      <div className="px-4 py-8 sm:py-12 lg-py-16">
+        <div className="justify-center align-center">
+          <h2 className="text-3xl font-bold text-center mt-12 sm:text-5xl tracking-tight">
+            Pricing
+          </h2>
+          <p className="max-w-3xl text-center mt-2 mx-auto text-xl ">
+            Get started on our weekly plan or upgrade to monthly or yearly when
+            you're ready
+          </p>
+        </div>
+        <div className="mt-12 container mx-auto space-y-12 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-x-8">
+          {availablePlans.map((plan, key) => (
+            <div
+              className="relative p-8 border border-gray-200 rounded-2xl hover:shadow-md hover:scale-[1.02] transition-transform duration-200 ease-out"
+              key={key}
             >
-              {isPending ? "Please Wait" : `Subscribe${plan.name}`} {plan.name}
-            </button>
-          </div>
-        ))}
+              <div className="flex-1">
+                {plan.isPopular && (
+                  <p className="absolute top-0 py-1.5 px-4 bg-rose-500 text-white rounded-full text-xs font-semibold transform -translate-y-1/2">
+                    Most Popular
+                  </p>
+                )}
+                <h3 className="text-xl font-bold">{plan.name}</h3>
+                <p>
+                  <span className="mt-6 text-5xl font-bold">
+                    {" "}
+                    Rs.{plan.amount}
+                  </span>
+                  <span className="font-bold text-xl">/{plan.interval}</span>
+                </p>
+                <p className="mt-4">{plan.description}</p>
+                <ul>
+                  {plan.features.map((feature, key) => {
+                    return (
+                      <li key={key} className="flex mt-3">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="flex-shrink-0 w-6 mt-3 text-rose-500"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span className="mt-3">{feature}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <button
+                onClick={() => handleSubscribe(plan.interval)}
+                disabled={isPending}
+                className={`${
+                  plan.interval === "month"
+                    ? "bg-rose-500 text-white hover:bg-rose-600"
+                    : "bg-rose-400 text-rose-700 hover:bg-rose-500"
+                }
+                mt-7 w-full py-3 px-6 text-white hover:bg-rose-600 border border-transparent rounded-md text-center font-medium hover:scale-[1.02] transition-transform duration-200 ease-out
+              `}
+              >
+                {isPending ? "Please Wait" : `Subscribe to ${plan.name}`}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

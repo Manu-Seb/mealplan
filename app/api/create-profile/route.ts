@@ -7,26 +7,31 @@ export async function POST() {
     const clerkUser = await currentUser();
     if (!clerkUser) {
       return NextResponse.json(
-        { error: "user not found in Clerk" },
+        { error: "User not found in Clerk" },
         { status: 404 }
       );
     }
-    const email = clerkUser?.emailAddresses[0].emailAddress;
+
+    const email = clerkUser?.emailAddresses[0]?.emailAddress;
     if (!email) {
       return NextResponse.json(
-        { error: "email not found in" },
+        { error: "Email not found in Clerk user data" },
         { status: 400 }
       );
     }
+
     const existingProfile = await prisma.profile.findUnique({
       where: { userId: clerkUser.id },
     });
 
-    if (!existingProfile) {
-      return NextResponse.json({ message: "profile Already Exists" });
+    if (existingProfile) {
+      return NextResponse.json(
+        { message: "Profile already exists" },
+        { status: 200 } // 409 (Conflict) could also work
+      );
     }
 
-    await prisma.profile.create({
+    const newProfile = await prisma.profile.create({
       data: {
         userId: clerkUser.id,
         email,
@@ -36,11 +41,17 @@ export async function POST() {
       },
     });
 
+    console.log("Profile created:", newProfile); // Debug log
+
     return NextResponse.json(
-      { message: "profile created successfully" },
+      { message: "Profile created successfully", profile: newProfile },
       { status: 201 }
     );
   } catch (error: any) {
-    return NextResponse.json({ error: "internal error" }, { status: 500 });
+    console.error("Error creating profile:", error); // Log the full error
+    return NextResponse.json(
+      { error: "Internal server error", details: error.message },
+      { status: 500 }
+    );
   }
 }
