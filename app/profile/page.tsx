@@ -1,3 +1,4 @@
+// app/profile/page.tsx
 "use client";
 
 import { Spinner } from "@/components/spinner";
@@ -5,7 +6,7 @@ import { availablePlans } from "@/lib/plans";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
-import { useRouter } from "next/navigation"; // Updated import for Next.js 13+
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "react-hot-toast";
 
@@ -67,10 +68,9 @@ export default function ProfilePage() {
     mutationFn: updatePlan,
     onSuccess: () => {
       toast.success("Subscription plan updated successfully!");
-      // Refetch the subscription status to update the UI
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => { // Changed from 'any' to 'Error'
       toast.error(error.message || "Failed to update subscription plan");
     },
   });
@@ -79,16 +79,14 @@ export default function ProfilePage() {
     mutationFn: unsubscribe,
     onSuccess: () => {
       toast.success("Unsubscribed successfully!");
-      // Refetch the subscription status to update the UI
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
       router.push("/subscribe");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => { // Changed from 'any' to 'Error'
       toast.error(error.message || "Failed to unsubscribe");
     },
   });
 
-  // Debug: Log to verify the data
   console.log("availablePlans:", availablePlans);
   console.log("subscription:", subscription);
 
@@ -97,7 +95,6 @@ export default function ProfilePage() {
     ? availablePlans.find((plan) => plan.interval === subscriptionTier)
     : undefined;
 
-  // Set the default selected plan to the current plan's interval
   useEffect(() => {
     if (currentPlan) {
       setSelectedPlan(currentPlan.interval);

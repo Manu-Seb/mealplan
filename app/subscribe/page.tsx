@@ -1,10 +1,11 @@
+// app/subscribe/page.tsx
 "use client";
 
 import { availablePlans } from "@/lib/plans";
 import { useUser } from "@clerk/nextjs";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { toast, Toaster } from 'react-hot-toast';
+import { toast, Toaster } from "react-hot-toast";
 
 type SubscribeResponse = {
   url: string;
@@ -43,15 +44,15 @@ async function subscribeToPlan(
       throw new Error("URL from checkout was not received");
     }
     return data;
-  } catch (error: any) {
-    console.error("Error during subscription:", error);
-    throw error; // Re-throw the error to be caught by useMutation
+  } catch (error: unknown) { // Changed from 'any' to 'unknown'
+    const errorMessage = error instanceof Error ? error.message : "Unknown error during subscription";
+    console.error("Error during subscription:", errorMessage);
+    throw new Error(errorMessage); // Re-throw the error to be caught by useMutation
   }
 }
 
 export default function Subscribe() {
   const { user } = useUser();
-
   const router = useRouter();
   const userId = user?.id;
   const email = user?.emailAddresses[0].emailAddress || "";
@@ -72,8 +73,8 @@ export default function Subscribe() {
     onSuccess: (data) => {
       window.location.href = data.url;
     },
-    onError: (error) => {
-      toast.error("something went wrong");
+    onError: () => {
+      toast.error("Something went wrong");
     },
   });
 
@@ -84,6 +85,7 @@ export default function Subscribe() {
     }
     mutate({ planType });
   };
+
   return (
     <>
       <Toaster />
@@ -92,9 +94,9 @@ export default function Subscribe() {
           <h2 className="text-3xl font-bold text-center mt-12 sm:text-5xl tracking-tight">
             Pricing
           </h2>
-          <p className="max-w-3xl text-center mt-2 mx-auto text-xl ">
+          <p className="max-w-3xl text-center mt-2 mx-auto text-xl">
             Get started on our weekly plan or upgrade to monthly or yearly when
-            you're ready
+            you&apos;re ready {/* Escaped the single quote */}
           </p>
         </div>
         <div className="mt-12 container mx-auto space-y-12 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-x-8">
@@ -112,7 +114,6 @@ export default function Subscribe() {
                 <h3 className="text-xl font-bold">{plan.name}</h3>
                 <p>
                   <span className="mt-6 text-5xl font-bold">
-                    {" "}
                     Rs.{plan.amount}
                   </span>
                   <span className="font-bold text-xl">/{plan.interval}</span>

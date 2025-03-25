@@ -44,26 +44,22 @@ export async function POST(request: NextRequest) {
             - No extra explanations, comments, or Markdown formatting.
             - No backticks (\`\`\`).`;
 
-
         // Add the code to call the OpenAI API with the prompt and return the response
-        const response= await openAI.chat.completions.create(
-            {
-                model:"meta-llama/llama-3.2-3b-instruct:free",
-                messages:[
-                    {
-                        role:"user",
-                        content:prompt
-                    }
-                ],
-                temperature:0.7,
-                max_tokens:1500,
-            }
-        );
+        const response = await openAI.chat.completions.create({
+            model: "meta-llama/llama-3.2-3b-instruct:free",
+            messages: [
+                {
+                    role: "user",
+                    content: prompt,
+                },
+            ],
+            temperature: 0.7,
+            max_tokens: 1500,
+        });
 
         const aiContent = response.choices[0].message.content!.trim();
 
-
-        let cleanedResponse = aiContent.replace(/```json|```/g, "").trim();
+        const cleanedResponse = aiContent.replace(/```json|```/g, "").trim();
 
         let parsedMealPlan: { [day: string]: DailyMealPlan };
 
@@ -81,16 +77,15 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ mealPlan: parsedMealPlan });
 
-
-        
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        console.error("Error generating meal plan:", error);
+        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }
 }
 
-interface DailyMealPlan{
-    Breakfast?:string;
-    Lunch?:string;
-    Dinner?:string;
-    Snacks?:string;
+interface DailyMealPlan {
+    Breakfast?: string;
+    Lunch?: string;
+    Dinner?: string;
+    Snacks?: string;
 }

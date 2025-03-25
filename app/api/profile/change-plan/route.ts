@@ -73,15 +73,16 @@ export async function POST(request: NextRequest) {
         subscriptionTier: newPlan,
         stripeSubscriptionId: updatedSubscription.id,
         subscriptionActive: true,
-      }, // Only return the subscriptionTier
+      },
     });
 
     // Return the updated subscription data in the same format as /api/profile/subscription-status
     return NextResponse.json({ subscription: updatedProfile });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating subscription:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to update subscription";
     return NextResponse.json(
-      { error: error.message || "Failed to update subscription" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

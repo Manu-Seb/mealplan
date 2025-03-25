@@ -1,28 +1,35 @@
 // app/api/webhooks/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // <-- import Prisma client
+import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
 export async function POST(req: NextRequest) {
+  console.log("Webhook endpoint hit!");
+
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
+
+  if (!signature) {
+    console.error("Webhook error: Missing stripe-signature header");
+    return NextResponse.json({ error: "Missing stripe-signature header" }, { status: 400 });
+  }
 
   let event: Stripe.Event;
 
   // Verify Stripe event is legit
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature || "",
-      webhookSecret
-    );
-  } catch (err: any) {
-    console.error(`Webhook signature verification failed. ${err.message}`);
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    console.log("Webhook event verified:", { type: event.type, id: event.id });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error during webhook signature verification";
+    console.error("Webhook error: Signature verification failed", {
+      error: errorMessage,
+      signature,
+    });
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 
   try {
@@ -42,69 +49,84 @@ export async function POST(req: NextRequest) {
         await handleSubscriptionDeleted(subscription);
         break;
       }
-      // Add more event types as needed
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        console.log("Webhook event: Unhandled event type", { type: event.type, id: event.id });
     }
-  } catch (e: any) {
-    console.error(`stripe error: ${e.message} | EVENT TYPE: ${event.type}`);
-    return NextResponse.json({ error: e.message }, { status: 400 });
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unknown error processing webhook event";
+    console.error("Webhook error: Failed to process event", {
+      eventType: event.type,
+      eventId: event.id,
+      error: errorMessage,
+    });
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 
-  return NextResponse.json({});
+  return NextResponse.json({ received: true });
 }
 
 // Handler for successful checkout sessions
-const handleCheckoutSessionCompleted = async (
-  session: Stripe.Checkout.Session
-) => {
+const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) => {
   const userId = session.metadata?.clerkUserId;
-  console.log("Handling checkout.session.completed for user:", userId);
+  const planType = session.metadata?.planType;
+  const sessionId = session.id;
+
+  console.log("Webhook: Handling checkout.session.completed", { sessionId, userId, planType });
 
   if (!userId) {
-    console.error("No userId found in session metadata.");
-    return;
+    console.error("Webhook error: No userId found in session metadata", { sessionId });
+    throw new Error("No userId found in session metadata");
   }
 
-  // Retrieve subscription ID from the session
+  if (!planType) {
+    console.error("Webhook error: No planType found in session metadata", { sessionId, userId });
+    throw new Error("No planType found in session metadata");
+  }
+
   const subscriptionId = session.subscription as string;
-
   if (!subscriptionId) {
-    console.error("No subscription ID found in session.");
-    return;
+    console.error("Webhook error: No subscription ID found in session", { sessionId, userId });
+    throw new Error("No subscription ID found in session");
   }
 
-  console.log("HHHHEHHEHE");
-  // Update Prisma with subscription details
   try {
+    const profile = await prisma.profile.findUnique({ where: { userId } });
+    console.log(profile);
+    console.log("Webhook: Updating profile for user", { userId, subscriptionId, planType });
     await prisma.profile.update({
       where: { userId },
       data: {
         stripeSubscriptionId: subscriptionId,
         subscriptionActive: true,
-        subscriptionTier: session.metadata?.planType || null,
+        subscriptionTier: planType,
       },
     });
-    console.log(`Subscription activated for user: ${userId}`);
-  } catch (error: any) {
-    console.error("Prisma Update Error:", error.message);
+
+    console.log("Webhook: Subscription activated for user", { userId, subscriptionId });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error updating profile";
+    console.error("Webhook error: Prisma update failed in checkout.session.completed", {
+      userId,
+      sessionId,
+      subscriptionId,
+      error: errorMessage,
+    });
+    throw new Error(`Failed to update profile: ${errorMessage}`);
   }
 };
 
 // Handler for failed invoice payments
 const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
   const subscriptionId = invoice.subscription as string;
-  console.log(
-    "Handling invoice.payment_failed for subscription:",
-    subscriptionId
-  );
+  const invoiceId = invoice.id;
+
+  console.log("Webhook: Handling invoice.payment_failed", { invoiceId, subscriptionId });
 
   if (!subscriptionId) {
-    console.error("No subscription ID found in invoice.");
-    return;
+    console.error("Webhook error: No subscription ID found in invoice", { invoiceId });
+    throw new Error("No subscription ID found in invoice");
   }
 
-  // Retrieve userId from subscription ID
   let userId: string | undefined;
   try {
     const profile = await prisma.profile.findUnique({
@@ -113,17 +135,22 @@ const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
     });
 
     if (!profile?.userId) {
-      console.error("No profile found for this subscription ID.");
-      return;
+      console.error("Webhook error: No profile found for subscription ID", { subscriptionId, invoiceId });
+      throw new Error("No profile found for this subscription ID");
     }
 
     userId = profile.userId;
-  } catch (error: any) {
-    console.error("Prisma Query Error:", error.message);
-    return;
+    console.log("Webhook: Found user for subscription", { userId, subscriptionId });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error querying profile";
+    console.error("Webhook error: Prisma query failed in invoice.payment_failed", {
+      subscriptionId,
+      invoiceId,
+      error: errorMessage,
+    });
+    throw new Error(`Failed to query profile: ${errorMessage}`);
   }
 
-  // Update Prisma with payment failure
   try {
     await prisma.profile.update({
       where: { userId },
@@ -131,21 +158,25 @@ const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
         subscriptionActive: false,
       },
     });
-    console.log(`Subscription payment failed for user: ${userId}`);
-  } catch (error: any) {
-    console.error("Prisma Update Error:", error.message);
+    console.log("Webhook: Subscription deactivated due to payment failure", { userId, subscriptionId });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error updating profile";
+    console.error("Webhook error: Prisma update failed in invoice.payment_failed", {
+      userId,
+      subscriptionId,
+      invoiceId,
+      error: errorMessage,
+    });
+    throw new Error(`Failed to update profile: ${errorMessage}`);
   }
 };
 
 // Handler for subscription deletions (e.g., cancellations)
 const handleSubscriptionDeleted = async (subscription: Stripe.Subscription) => {
   const subscriptionId = subscription.id;
-  console.log(
-    "Handling customer.subscription.deleted for subscription:",
-    subscriptionId
-  );
 
-  // Retrieve userId from subscription ID
+  console.log("Webhook: Handling customer.subscription.deleted", { subscriptionId });
+
   let userId: string | undefined;
   try {
     const profile = await prisma.profile.findUnique({
@@ -154,17 +185,21 @@ const handleSubscriptionDeleted = async (subscription: Stripe.Subscription) => {
     });
 
     if (!profile?.userId) {
-      console.error("No profile found for this subscription ID.");
-      return;
+      console.error("Webhook error: No profile found for subscription ID", { subscriptionId });
+      throw new Error("No profile found for this subscription ID");
     }
 
     userId = profile.userId;
-  } catch (error: any) {
-    console.error("Prisma Query Error:", error.message);
-    return;
+    console.log("Webhook: Found user for subscription", { userId, subscriptionId });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error querying profile";
+    console.error("Webhook error: Prisma query failed in customer.subscription.deleted", {
+      subscriptionId,
+      error: errorMessage,
+    });
+    throw new Error(`Failed to query profile: ${errorMessage}`);
   }
 
-  // Update Prisma with subscription cancellation
   try {
     await prisma.profile.update({
       where: { userId },
@@ -173,8 +208,14 @@ const handleSubscriptionDeleted = async (subscription: Stripe.Subscription) => {
         stripeSubscriptionId: null,
       },
     });
-    console.log(`Subscription canceled for user: ${userId}`);
-  } catch (error: any) {
-    console.error("Prisma Update Error:", error.message);
+    console.log("Webhook: Subscription canceled and profile updated", { userId, subscriptionId });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error updating profile";
+    console.error("Webhook error: Prisma update failed in customer.subscription.deleted", {
+      userId,
+      subscriptionId,
+      error: errorMessage,
+    });
+    throw new Error(`Failed to update profile: ${errorMessage}`);
   }
 };

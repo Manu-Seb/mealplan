@@ -9,7 +9,7 @@ type ApiResponse = {
   error?: string;
 };
 
-async function CreateProfileRequest() {
+async function CreateProfileRequest(): Promise<ApiResponse> {
   const response = await fetch("/api/create-profile", {
     method: "POST",
     headers: {
@@ -26,6 +26,7 @@ export default function CreateProfile() {
   const { mutate, isPending } = useMutation<ApiResponse, Error>({
     mutationFn: CreateProfileRequest,
     onSuccess: (data) => {
+      console.log(data); // Log the data to avoid the unused variable error
       router.push("/subscribe");
     },
     onError: (error) => {
@@ -37,6 +38,7 @@ export default function CreateProfile() {
     if (isLoaded && isSignedIn && !isPending) {
       mutate();
     }
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, isPending, mutate]);
+
   return <div>Processing Sign in...</div>;
 }
