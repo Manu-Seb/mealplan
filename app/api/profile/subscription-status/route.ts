@@ -14,7 +14,11 @@ export async function GET(){
             where:{userId: clerkUser.id},
         select: { subscriptionTier: true }
         });
-        return NextResponse.json(profile);
+
+        if(!profile){
+            return NextResponse.json({error:"No profile Found"}, {status: 400});
+        }
+        return NextResponse.json({subscription:profile});
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 400 });
     }
